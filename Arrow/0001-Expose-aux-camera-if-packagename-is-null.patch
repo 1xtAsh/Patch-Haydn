@@ -1,0 +1,25 @@
+From 1c79af71ecfd144e45aa20be25061547aec7c6fa Mon Sep 17 00:00:00 2001
+From: neobuddy89 <neobuddy89@gmail.com>
+Date: Thu, 20 Jul 2023 12:25:00 +0530
+Subject: [PATCH] Camera: Expose aux camera if packagename is null
+
+* fixes ultra-wide and macro lens feature on some devices
+
+Signed-off-by: ashraysingh <ashraysingh123@gmail.com>
+---
+ core/java/android/hardware/Camera.java | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/core/java/android/hardware/Camera.java b/core/java/android/hardware/Camera.java
+index b59585d5df46..c25eb149ca2a 100644
+--- a/core/java/android/hardware/Camera.java
++++ b/core/java/android/hardware/Camera.java
+@@ -287,6 +287,8 @@ public static boolean shouldExposeAuxCamera() {
+          * if the package name does not falls in this bucket
+          */
+         String packageName = ActivityThread.currentOpPackageName();
++        if (packageName == null)
++            return true;
+         List<String> packageList = Arrays.asList(
+                 SystemProperties.get("vendor.camera.aux.packagelist", packageName).split(","));
+         List<String> packageExcludelist = Arrays.asList(
