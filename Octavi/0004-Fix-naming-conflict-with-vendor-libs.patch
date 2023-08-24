@@ -1,0 +1,55 @@
+From 215b8bf3c032e219da884b480bff0daca5009742 Mon Sep 17 00:00:00 2001
+From: Andrzej Perczak <linux@andrzejperczak.com>
+Date: Sun, 6 Aug 2023 10:48:08 +0000
+Subject: [PATCH] faceunlock: Fix naming conflict with vendor libs
+
+---
+ Android.bp              | 6 ++++--
+ dependencies/Android.bp | 6 +++---
+ 2 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/Android.bp b/Android.bp
+index 1ed3bd3..5e31727 100644
+--- a/Android.bp
++++ b/Android.bp
+@@ -14,7 +14,8 @@ cc_prebuilt_library_shared {
+ }
+ 
+ cc_prebuilt_library_shared {
+-    name: "libmegface",
++    name: "libmegface-faceunlock",
++    stem: "libmegface",
+     strip: {
+         none: true,
+     },
+@@ -104,7 +105,8 @@ cc_prebuilt_library_shared {
+ }
+ 
+ cc_prebuilt_library_shared {
+-    name: "libmpbase",
++    name: "libmpbase-faceunlock",
++    stem: "libmpbase",
+     strip: {
+         none: true,
+     },
+diff --git a/dependencies/Android.bp b/dependencies/Android.bp
+index 8f9ab65..83a8386 100644
+--- a/dependencies/Android.bp
++++ b/dependencies/Android.bp
+@@ -12,12 +12,12 @@ cc_library {
+     compile_multilib: "64",
+     required: [
+         "libFaceDetectCA",
+-        "libmegface",
++        "libmegface-faceunlock",
+         "libMegviiUnlock",
+         "libMegviiUnlock-jni-1.2",
+         "libarcsoft_faceid",
+         "libarcsoft-lib",
+         "libarcsoftbase",
+-        "libmpbase",
++        "libmpbase-faceunlock",
+     ],
+-}
+\ No newline at end of file
++}

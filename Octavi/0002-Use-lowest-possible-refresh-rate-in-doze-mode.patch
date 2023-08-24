@@ -1,0 +1,69 @@
+From 70d943843d302eab414eceea43eed47d6f3bd9ba Mon Sep 17 00:00:00 2001
+From: Adithya R <gh0strider.2k18.reborn@gmail.com>
+Date: Mon, 17 Apr 2023 21:06:22 +0530
+Subject: [PATCH] SF: Use lowest possible refresh rate in doze mode
+
+Use the lowest refresh rate supported by the device, while we're on
+AOD/ambient display, to save power.
+
+Compared to previous patch
+"SF: Use lowest allowed refresh rate in doze mode",
+we don't need to follow user restrictions in doze mode.
+For example, device may support 48 Hz refresh rate which can be used
+on AOD to save power, but not recommended in regular usage.
+
+Change-Id: I1714aee5713078be00b8f91f709bbd5bea5680c0
+---
+ services/surfaceflinger/Scheduler/RefreshRateConfigs.cpp | 5 +++++
+ services/surfaceflinger/Scheduler/RefreshRateConfigs.h   | 3 +++
+ services/surfaceflinger/Scheduler/Scheduler.cpp          | 7 +++++++
+ 3 files changed, 15 insertions(+)
+
+diff --git a/services/surfaceflinger/Scheduler/RefreshRateConfigs.cpp b/services/surfaceflinger/Scheduler/RefreshRateConfigs.cpp
+index a48c921378..5aed7bcf41 100644
+--- a/services/surfaceflinger/Scheduler/RefreshRateConfigs.cpp
++++ b/services/surfaceflinger/Scheduler/RefreshRateConfigs.cpp
+@@ -687,6 +687,11 @@ std::optional<Fps> RefreshRateConfigs::onKernelTimerChanged(
+     return mode->getFps();
+ }
+ 
++DisplayModePtr RefreshRateConfigs::getMinRefreshRate() const {
++    std::lock_guard lock(mLock);
++    return mMinRefreshRateModeIt->second;
++}
++
+ const DisplayModePtr& RefreshRateConfigs::getMinRefreshRateByPolicyLocked() const {
+     for (const DisplayModeIterator modeIt : mPrimaryRefreshRates) {
+         const auto& mode = modeIt->second;
+diff --git a/services/surfaceflinger/Scheduler/RefreshRateConfigs.h b/services/surfaceflinger/Scheduler/RefreshRateConfigs.h
+index a79002e959..dc7c6e5eec 100644
+--- a/services/surfaceflinger/Scheduler/RefreshRateConfigs.h
++++ b/services/surfaceflinger/Scheduler/RefreshRateConfigs.h
+@@ -203,6 +203,9 @@ class RefreshRateConfigs {
+     std::optional<Fps> onKernelTimerChanged(std::optional<DisplayModeId> desiredActiveModeId,
+                                             bool timerExpired) const EXCLUDES(mLock);
+ 
++    // Returns the lowest refresh rate supported by the display.
++    DisplayModePtr getMinRefreshRate() const EXCLUDES(mLock);
++
+     // Returns the highest refresh rate according to the current policy. May change at runtime. Only
+     // uses the primary range, not the app request range.
+     DisplayModePtr getMaxRefreshRateByPolicy() const EXCLUDES(mLock);
+diff --git a/services/surfaceflinger/Scheduler/Scheduler.cpp b/services/surfaceflinger/Scheduler/Scheduler.cpp
+index 8b1a5d9720..2048846a0d 100644
+--- a/services/surfaceflinger/Scheduler/Scheduler.cpp
++++ b/services/surfaceflinger/Scheduler/Scheduler.cpp
+@@ -709,6 +709,13 @@ auto Scheduler::chooseDisplayMode() -> std::pair<DisplayModePtr, GlobalSignals>
+ 
+     const auto configs = holdRefreshRateConfigs();
+ 
++    // Use the lowest refresh rate on AOD/ambient display.
++    if (mPolicy.displayPowerMode == hal::PowerMode::DOZE ||
++        mPolicy.displayPowerMode == hal::PowerMode::DOZE_SUSPEND) {
++        constexpr GlobalSignals kNoSignals;
++        return {configs->getMinRefreshRate(), kNoSignals};
++    }
++
+     // If Display Power is not in normal operation we want to be in performance mode. When coming
+     // back to normal mode, a grace period is given with DisplayPowerTimer.
+     if (mDisplayPowerTimer &&
