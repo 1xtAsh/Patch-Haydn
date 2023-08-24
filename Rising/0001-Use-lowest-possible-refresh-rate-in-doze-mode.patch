@@ -1,4 +1,4 @@
-From aea89e18226f9be7be46e4a05e6db52127ae225e Mon Sep 17 00:00:00 2001
+From 5dfb40181312044af0c4b230dd393679ba6fbb90 Mon Sep 17 00:00:00 2001
 From: Adithya R <gh0strider.2k18.reborn@gmail.com>
 Date: Mon, 17 Apr 2023 21:06:22 +0530
 Subject: [PATCH] SF: Use lowest possible refresh rate in doze mode
@@ -20,10 +20,10 @@ Change-Id: I1714aee5713078be00b8f91f709bbd5bea5680c0
  3 files changed, 15 insertions(+)
 
 diff --git a/services/surfaceflinger/Scheduler/RefreshRateConfigs.cpp b/services/surfaceflinger/Scheduler/RefreshRateConfigs.cpp
-index a48c921378..5aed7bcf41 100644
+index ea5b6e8adc..375753a24a 100644
 --- a/services/surfaceflinger/Scheduler/RefreshRateConfigs.cpp
 +++ b/services/surfaceflinger/Scheduler/RefreshRateConfigs.cpp
-@@ -687,6 +687,11 @@ std::optional<Fps> RefreshRateConfigs::onKernelTimerChanged(
+@@ -715,6 +715,11 @@ std::optional<Fps> RefreshRateConfigs::onKernelTimerChanged(
      return mode->getFps();
  }
  
@@ -36,10 +36,10 @@ index a48c921378..5aed7bcf41 100644
      for (const DisplayModeIterator modeIt : mPrimaryRefreshRates) {
          const auto& mode = modeIt->second;
 diff --git a/services/surfaceflinger/Scheduler/RefreshRateConfigs.h b/services/surfaceflinger/Scheduler/RefreshRateConfigs.h
-index a79002e959..dc7c6e5eec 100644
+index a8a21d71db..2b50b64e6a 100644
 --- a/services/surfaceflinger/Scheduler/RefreshRateConfigs.h
 +++ b/services/surfaceflinger/Scheduler/RefreshRateConfigs.h
-@@ -203,6 +203,9 @@ class RefreshRateConfigs {
+@@ -206,6 +206,9 @@ class RefreshRateConfigs {
      std::optional<Fps> onKernelTimerChanged(std::optional<DisplayModeId> desiredActiveModeId,
                                              bool timerExpired) const EXCLUDES(mLock);
  
@@ -50,10 +50,10 @@ index a79002e959..dc7c6e5eec 100644
      // uses the primary range, not the app request range.
      DisplayModePtr getMaxRefreshRateByPolicy() const EXCLUDES(mLock);
 diff --git a/services/surfaceflinger/Scheduler/Scheduler.cpp b/services/surfaceflinger/Scheduler/Scheduler.cpp
-index 9c8bfc8e30..784638b59b 100644
+index 735e5931d3..082f7e9dd1 100644
 --- a/services/surfaceflinger/Scheduler/Scheduler.cpp
 +++ b/services/surfaceflinger/Scheduler/Scheduler.cpp
-@@ -712,6 +712,13 @@ auto Scheduler::chooseDisplayMode() -> std::pair<DisplayModePtr, GlobalSignals>
+@@ -738,6 +738,13 @@ auto Scheduler::chooseDisplayMode() -> std::pair<DisplayModePtr, GlobalSignals>
  
      const auto configs = holdRefreshRateConfigs();
  
