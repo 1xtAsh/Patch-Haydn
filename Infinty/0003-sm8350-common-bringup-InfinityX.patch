@@ -1,0 +1,49 @@
+From aa0b2a1dac73dea374567b78243afb3565a71f2b Mon Sep 17 00:00:00 2001
+From: 1xtAsh <ashraykrsingh321@gmail.com>
+Date: Thu, 22 Aug 2024 22:06:15 +0530
+Subject: [PATCH] sm8350-common: bringup InfinityX
+
+---
+ BoardConfigCommon.mk                          | 6 ++----
+ lineage.dependencies => infinity.dependencies | 0
+ 2 files changed, 2 insertions(+), 4 deletions(-)
+ rename lineage.dependencies => infinity.dependencies (100%)
+
+diff --git a/BoardConfigCommon.mk b/BoardConfigCommon.mk
+index 4d88a920..150d84a1 100644
+--- a/BoardConfigCommon.mk
++++ b/BoardConfigCommon.mk
+@@ -8,8 +8,6 @@ COMMON_PATH := device/xiaomi/sm8350-common
+ 
+ BUILD_BROKEN_ELF_PREBUILT_PRODUCT_COPY_FILES := true
+ OVERRIDE_ENABLE_UFFD_GC := true
+-BUILD_BROKEN_DUP_SYSPROP := true
+-BUILD_BROKEN_DUP_RULES := true
+ 
+ # A/B
+ AB_OTA_UPDATER := true
+@@ -67,7 +65,7 @@ DEVICE_MATRIX_FILE := $(COMMON_PATH)/hidl/compatibility_matrix.xml
+ DEVICE_FRAMEWORK_COMPATIBILITY_MATRIX_FILE := \
+     $(COMMON_PATH)/hidl/vendor_framework_compatibility_matrix.xml \
+     $(COMMON_PATH)/hidl/xiaomi_framework_compatibility_matrix.xml \
+-    vendor/lineage/config/device_framework_matrix.xml
++    vendor/infinity/config/device_framework_matrix.xml
+ 
+ DEVICE_MANIFEST_FILE := \
+     $(COMMON_PATH)/hidl/manifest_lahaina.xml \
+@@ -125,7 +123,7 @@ BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := f2fs
+ BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE := ext4
+ BOARD_VENDOR_DLKMIMAGE_FILE_SYSTEM_TYPE := ext4
+ 
+--include vendor/lineage/config/BoardConfigReservedSize.mk
++-include vendor/infinity/config/BoardConfigReservedSize.mk
+ BOARD_SYSTEM_EXTIMAGE_PARTITION_RESERVED_SIZE := 104857600
+ BOARD_VENDORIMAGE_PARTITION_RESERVED_SIZE := 104857600
+ 
+diff --git a/lineage.dependencies b/infinity.dependencies
+similarity index 100%
+rename from lineage.dependencies
+rename to infinity.dependencies
+-- 
+2.34.1
+

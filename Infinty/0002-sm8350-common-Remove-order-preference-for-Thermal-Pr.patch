@@ -1,0 +1,27 @@
+From 2c24171895bd3daf24c6de1295d3f21e9fdab4a0 Mon Sep 17 00:00:00 2001
+From: kssrao13882 <kssrao13882@gmail.com>
+Date: Wed, 8 May 2024 12:17:02 +0530
+Subject: [PATCH] sm8350-common: Remove order preference for Thermal Profiles
+
+- In Infinity X rom this tab at top spoils the look of Battery section
+---
+ parts/AndroidManifest.xml | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/parts/AndroidManifest.xml b/parts/AndroidManifest.xml
+index 89e4e9e0..8ba38270 100644
+--- a/parts/AndroidManifest.xml
++++ b/parts/AndroidManifest.xml
+@@ -116,9 +116,6 @@
+             <meta-data
+                 android:name="com.android.settings.summary"
+                 android:resource="@string/thermal_summary" />
+-            <meta-data
+-                android:name="com.android.settings.order"
+-                android:value="1" />
+         </activity>
+ 
+         <service
+-- 
+2.34.1
+

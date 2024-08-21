@@ -1,0 +1,69 @@
+From 46c847ec38a2dd39581f30515276f20fc719c177 Mon Sep 17 00:00:00 2001
+From: 1xtAsh <ashraykrsingh321@gmail.com>
+Date: Thu, 22 Aug 2024 22:14:14 +0530
+Subject: [PATCH] haydn: Bringup infinityX
+
+---
+ AndroidProducts.mk                    |  2 +-
+ lineage_haydn.mk => infinity_haydn.mk | 23 +++++++++++------------
+ 2 files changed, 12 insertions(+), 13 deletions(-)
+ rename lineage_haydn.mk => infinity_haydn.mk (69%)
+
+diff --git a/AndroidProducts.mk b/AndroidProducts.mk
+index 2e427e3..da8bc5e 100644
+--- a/AndroidProducts.mk
++++ b/AndroidProducts.mk
+@@ -5,5 +5,5 @@
+ #
+ 
+ PRODUCT_MAKEFILES := \
+-    $(LOCAL_DIR)/lineage_haydn.mk
++    $(LOCAL_DIR)/infinity_haydn.mk
+ 
+diff --git a/lineage_haydn.mk b/infinity_haydn.mk
+similarity index 69%
+rename from lineage_haydn.mk
+rename to infinity_haydn.mk
+index 52ec5f0..09eaf15 100644
+--- a/lineage_haydn.mk
++++ b/infinity_haydn.mk
+@@ -11,26 +11,25 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
+ # Inherit from haydn device
+ $(call inherit-product, device/xiaomi/haydn/device.mk)
+ 
+-# Inherit some common Lineage stuff.
+-$(call inherit-product, vendor/lineage/config/common_full_phone.mk)
++# Inherit some common infinityX stuff.
++$(call inherit-product, vendor/infinity/config/common_full_phone.mk)
+ 
+ PRODUCT_BRAND := Xiaomi
+ PRODUCT_DEVICE := haydn
+ PRODUCT_MANUFACTURER := Xiaomi
+ PRODUCT_MODEL := M2012K11G
+-PRODUCT_NAME := lineage_haydn
++PRODUCT_NAME := infinity_haydn
+ 
+-# Gapps
+-WITH_GMS := false
++# Infinity-X Specific Flags
++INFINITY_BUILD_TYPE := OFFICIAL
++TARGET_BOOT_ANIMATION_RES := 1080
++INFINITY_MAINTAINER := AshraySingh
++TARGET_BUILD_GOOGLE_TELEPHONY := true
++TARGET_SUPPORTS_BLUR := true
+ 
+ PRODUCT_SYSTEM_NAME := haydn_global
+-PRODUCT_SYSTEM_DEVICE := haydn
+-
+-PRODUCT_SYSTEM_PROPERTIES += \
+-	ro.adb.secure=0 \
+-        ro.debuggable=1 \
+-	ro.force.debuggable=1 \
+-        persist.sys.usb.config=adb 
++PRODUCT_SYSTEM_DEVICE := haydn 
+         
+ PRODUCT_BUILD_PROP_OVERRIDES += \
+     PRIVATE_BUILD_DESC="haydn_global-user 14 UKQ1.231207.002 V816.0.2.0.UKKMIXM release-keys" \
+-- 
+2.34.1
+

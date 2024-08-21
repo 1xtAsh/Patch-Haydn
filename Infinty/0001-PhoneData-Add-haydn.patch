@@ -1,0 +1,32 @@
+From 4264cae1618f90d301497b9d24a56e77eb306756 Mon Sep 17 00:00:00 2001
+From: 1xtAsh <ashraykrsingh321@gmail.com>
+Date: Fri, 9 Aug 2024 21:14:44 +0530
+Subject: [PATCH]  PhoneData: Add haydn
+
+Signed-off-by: 1xtAsh <ashraykrsingh321@gmail.com>
+---
+ src/com/android/settings/PhoneData.java | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/src/com/android/settings/PhoneData.java b/src/com/android/settings/PhoneData.java
+index 186b779..07b9c4a 100644
+--- a/src/com/android/settings/PhoneData.java
++++ b/src/com/android/settings/PhoneData.java
+@@ -708,6 +708,14 @@ public final class PhoneData {
+             "1440 x 3120, 90HZ",
+             "48MP + 8MP + 16MP, 16MP"
+         ));
++        // haydn
++        data.add(new AboutPhoneData(91,
++            "haydn",
++            "Snapdragon 888",
++            "4520",
++            "1080 x 2400, 120HZ",
++            "108MP + 8MP + 5MP, 20MP"
++        ));
+     }
+     public static List<AboutPhoneData> getData() {
+         return data;
+-- 
+2.34.1
+
