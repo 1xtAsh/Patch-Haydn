@@ -1,0 +1,35 @@
+From 682b2a9fe9e923bad19a6c2ba651593b449b13ef Mon Sep 17 00:00:00 2001
+From: 1xtAsh <ashraykrsingh321@gmail.com>
+Date: Wed, 4 Sep 2024 23:34:09 +0530
+Subject: [PATCH] haydn: Escape the Matrixx
+
+---
+ lineage_haydn.mk | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/lineage_haydn.mk b/lineage_haydn.mk
+index 2a46aca..928ad06 100644
+--- a/lineage_haydn.mk
++++ b/lineage_haydn.mk
+@@ -20,6 +20,19 @@ PRODUCT_MANUFACTURER := Xiaomi
+ PRODUCT_MODEL := M2012K11G
+ PRODUCT_NAME := lineage_haydn
+ 
++# Matrixx                        
++MATRIXX_MAINTAINER := AntiMiUi                       
++MATRIXX_CHIPSET := SM8350
++MATRIXX_BATTERY := 4520mah
++MATRIXX_DISPLAY := 1080x2400
++TARGET_BOOT_ANIMATION_RES := 1080
++
++# Gapps                
++BUILD_GOOGLE_CONTACTS := true
++BUILD_GOOGLE_DIALER := true
++BUILD_GOOGLE_MESSAGE := true
++
+ PRODUCT_SYSTEM_NAME := haydn_global
+ PRODUCT_SYSTEM_DEVICE := haydn
+ 
+-- 
+2.43.0
+
