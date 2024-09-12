@@ -1,0 +1,28 @@
+From 088514ffa64985df8d0884d7f2ffcd35a5bdb48c Mon Sep 17 00:00:00 2001
+From: 1xtAsh <ashraykrsingh321@gmail.com>
+Date: Thu, 12 Sep 2024 12:09:44 +0530
+Subject: [PATCH] configs: remove duplicate prop
+
+---
+ configs/lahaina/lahaina.mk | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/configs/lahaina/lahaina.mk b/configs/lahaina/lahaina.mk
+index 4295c643e..d40eb6b43 100644
+--- a/configs/lahaina/lahaina.mk
++++ b/configs/lahaina/lahaina.mk
+@@ -299,11 +299,6 @@ vendor.voice.path.for.pcm.voip=true
+ PRODUCT_PROPERTY_OVERRIDES += \
+ vendor.audio.offload.multiaac.enable=true
+ 
+-#Enable DS2, Hardbypass feature for Dolby
+-PRODUCT_PROPERTY_OVERRIDES += \
+-vendor.audio.dolby.ds2.enabled=false\
+-vendor.audio.dolby.ds2.hardbypass=false
+-
+ #Disable Multiple offload sesison
+ PRODUCT_PROPERTY_OVERRIDES += \
+ vendor.audio.offload.multiple.enabled=false
+-- 
+2.43.0
+
