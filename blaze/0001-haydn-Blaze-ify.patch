@@ -1,0 +1,70 @@
+From 6d91c7ce55fa7585ca55a30b412fd28baf78e6db Mon Sep 17 00:00:00 2001
+From: 1xtAsh <ashraykrsingh321@gmail.com>
+Date: Wed, 2 Oct 2024 22:58:49 +0530
+Subject: [PATCH] haydn: Blaze-ify!
+
+---
+ AndroidProducts.mk                 |  2 +-
+ lineage_haydn.mk => blaze_haydn.mk | 21 ++++++++++++++++++---
+ 2 files changed, 19 insertions(+), 4 deletions(-)
+ rename lineage_haydn.mk => blaze_haydn.mk (64%)
+
+diff --git a/AndroidProducts.mk b/AndroidProducts.mk
+index 2e427e3..4435cb6 100644
+--- a/AndroidProducts.mk
++++ b/AndroidProducts.mk
+@@ -5,5 +5,5 @@
+ #
+ 
+ PRODUCT_MAKEFILES := \
+-    $(LOCAL_DIR)/lineage_haydn.mk
++    $(LOCAL_DIR)/blaze_haydn.mk
+ 
+diff --git a/lineage_haydn.mk b/blaze_haydn.mk
+similarity index 64%
+rename from lineage_haydn.mk
+rename to blaze_haydn.mk
+index 2a46aca..2e2b4d1 100644
+--- a/lineage_haydn.mk
++++ b/blaze_haydn.mk
+@@ -11,14 +11,26 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
+ # Inherit from haydn device
+ $(call inherit-product, device/xiaomi/haydn/device.mk)
+ 
+-# Inherit some common Lineage stuff.
+-$(call inherit-product, vendor/lineage/config/common_full_phone.mk)
++# Inherit some common Blaze stuff.
++$(call inherit-product, vendor/blaze/config/common_full_phone.mk)
++
++# Blaze Specific
++BLAZE_BUILD_TYPE := UNOFFICIAL
++BLAZE_MAINTAINER := AntiMiui
++
++# Extras
++TARGET_FACE_UNLOCK_SUPPORTED := true
++TARGET_SUPPORTS_BLUR := true
++TARGET_SUPPORTS_QUICK_TAP := true
++TARGET_SUPPORTS_CALL_RECORDING := true
++TARGET_INCLUDE_LIVE_WALLPAPERS := true
++TARGET_BOOT_ANIMATION_RES := 1080
+ 
+ PRODUCT_BRAND := Xiaomi
+ PRODUCT_DEVICE := haydn
+ PRODUCT_MANUFACTURER := Xiaomi
+ PRODUCT_MODEL := M2012K11G
+-PRODUCT_NAME := lineage_haydn
++PRODUCT_NAME := blaze_haydn
+ 
+ PRODUCT_SYSTEM_NAME := haydn_global
+ PRODUCT_SYSTEM_DEVICE := haydn
+@@ -30,4 +42,7 @@ PRODUCT_BUILD_PROP_OVERRIDES += \
+ 
+ BUILD_FINGERPRINT := Xiaomi/haydn_global/haydn:14/UKQ1.231207.002/V816.0.2.0.UKKMIXM:user/release-keys
+ 
++PRODUCT_PRODUCT_PROPERTIES += \
++    ro.build.fingerprint=$(BUILD_FINGERPRINT)
++
+ PRODUCT_GMS_CLIENTID_BASE := android-xiaomi
+-- 
+2.34.1
+
