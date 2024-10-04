@@ -1,0 +1,77 @@
+From 7f06ca24aa1ec018bfe2700b649b57183904ff3f Mon Sep 17 00:00:00 2001
+From: 1xtAsh <ashraykrsingh321@gmail.com>
+Date: Fri, 4 Oct 2024 14:34:28 +0530
+Subject: [PATCH] haydn: Voltage-ify
+
+---
+ AndroidProducts.mk                                    | 2 +-
+ device.mk                                             | 3 +++
+ overlay/packages/apps/Settings/res/values/strings.xml | 9 +++++++++
+ lineage_haydn.mk => voltage_haydn.mk                  | 4 ++--
+ 4 files changed, 15 insertions(+), 3 deletions(-)
+ create mode 100644 overlay/packages/apps/Settings/res/values/strings.xml
+ rename lineage_haydn.mk => voltage_haydn.mk (90%)
+
+diff --git a/AndroidProducts.mk b/AndroidProducts.mk
+index 2e427e3..35803b0 100644
+--- a/AndroidProducts.mk
++++ b/AndroidProducts.mk
+@@ -5,5 +5,5 @@
+ #
+ 
+ PRODUCT_MAKEFILES := \
+-    $(LOCAL_DIR)/lineage_haydn.mk
++    $(LOCAL_DIR)/voltage_haydn.mk
+ 
+diff --git a/device.mk b/device.mk
+index 15203f9..e48b715 100644
+--- a/device.mk
++++ b/device.mk
+@@ -54,3 +54,6 @@ $(call inherit-product, vendor/xiaomi/haydn/haydn-vendor.mk)
+ 
+ # Call the Leica Camera setup
+ $(call inherit-product-if-exists, vendor/xiaomi/haydn-miuicamera/products/miuicamera.mk)
++
++# Sign key
++-include vendor/lineage-priv/keys/keys.mk
+diff --git a/overlay/packages/apps/Settings/res/values/strings.xml b/overlay/packages/apps/Settings/res/values/strings.xml
+new file mode 100644
+index 0000000..1ab9231
+--- /dev/null
++++ b/overlay/packages/apps/Settings/res/values/strings.xml
+@@ -0,0 +1,9 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++     Copyright (C) 2023 VoltageOS
++     SPDX-License-Identifier: Apache-2.0
++-->
++<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
++    <!-- VoltageOS maintainer -->
++    <string name="voltage_maintainer">AntiMiui</string>
++</resources>
+diff --git a/lineage_haydn.mk b/voltage_haydn.mk
+similarity index 90%
+rename from lineage_haydn.mk
+rename to voltage_haydn.mk
+index 2a46aca..63424a8 100644
+--- a/lineage_haydn.mk
++++ b/voltage_haydn.mk
+@@ -12,13 +12,13 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
+ $(call inherit-product, device/xiaomi/haydn/device.mk)
+ 
+ # Inherit some common Lineage stuff.
+-$(call inherit-product, vendor/lineage/config/common_full_phone.mk)
++$(call inherit-product, vendor/volatge/config/common_full_phone.mk)
+ 
+ PRODUCT_BRAND := Xiaomi
+ PRODUCT_DEVICE := haydn
+ PRODUCT_MANUFACTURER := Xiaomi
+ PRODUCT_MODEL := M2012K11G
+-PRODUCT_NAME := lineage_haydn
++PRODUCT_NAME := voltage_haydn
+ 
+ PRODUCT_SYSTEM_NAME := haydn_global
+ PRODUCT_SYSTEM_DEVICE := haydn
+-- 
+2.34.1
+
