@@ -1,0 +1,106 @@
+From a350be303ac7001395b91cd2a6774f1d13bd9d52 Mon Sep 17 00:00:00 2001
+From: 1xtAsh <ashraykrsingh321@gmail.com>
+Date: Tue, 21 Jan 2025 07:25:03 +0530
+Subject: [PATCH] Revert "Remove redundant connect methods in Surface."
+
+This reverts commit 6a5fdc1d5f6f76c5938aa73f72941bd3f2643628.
+---
+ libs/gui/Surface.cpp            |  9 +++++++++
+ libs/gui/include/gui/Surface.h  | 11 ++++++++---
+ libs/gui/tests/Surface_test.cpp | 18 +++++++++---------
+ 3 files changed, 26 insertions(+), 12 deletions(-)
+
+diff --git a/libs/gui/Surface.cpp b/libs/gui/Surface.cpp
+index 66e7ddd915..cbd3a54be6 100644
+--- a/libs/gui/Surface.cpp
++++ b/libs/gui/Surface.cpp
+@@ -2076,6 +2076,15 @@ int Surface::connect(int api) {
+     return connect(api, listener);
+ }
+ 
++int Surface::connect(int api, const sp<SurfaceListener>& listener) {
++    return connect(api, listener, false);
++}
++
++int Surface::connect(
++        int api, bool reportBufferRemoval, const sp<SurfaceListener>& sListener) {
++    return connect(api, sListener, reportBufferRemoval);
++}
++
+ int Surface::connect(int api, const sp<SurfaceListener>& listener, bool reportBufferRemoval) {
+     ATRACE_CALL();
+     ALOGV("Surface::connect");
+diff --git a/libs/gui/include/gui/Surface.h b/libs/gui/include/gui/Surface.h
+index 14a351316d..67b23e8bf3 100644
+--- a/libs/gui/include/gui/Surface.h
++++ b/libs/gui/include/gui/Surface.h
+@@ -404,15 +404,20 @@ public:
+     virtual int unlockAndPost();
+     virtual int query(int what, int* value) const;
+ 
++    virtual int connect(int api, const sp<SurfaceListener>& listener);
++
+     // When reportBufferRemoval is true, clients must call getAndFlushRemovedBuffers to fetch
+     // GraphicBuffers removed from this surface after a dequeueBuffer, detachNextBuffer or
+     // attachBuffer call. This allows clients with their own buffer caches to free up buffers no
+     // longer in use by this surface.
+-    virtual int connect(int api, const sp<SurfaceListener>& listener,
+-                        bool reportBufferRemoval = false);
+-    virtual int detachNextBuffer(sp<GraphicBuffer>* outBuffer, sp<Fence>* outFence);
++    virtual int connect(int api, const sp<SurfaceListener>& listener, bool reportBufferRemoval);
++    virtual int detachNextBuffer(sp<GraphicBuffer>* outBuffer,
++            sp<Fence>* outFence);
+     virtual int attachBuffer(ANativeWindowBuffer*);
+ 
++    virtual int connect(
++            int api, bool reportBufferRemoval,
++            const sp<SurfaceListener>& sListener);
+     virtual void destroy();
+ 
+     // When client connects to Surface with reportBufferRemoval set to true, any buffers removed
+diff --git a/libs/gui/tests/Surface_test.cpp b/libs/gui/tests/Surface_test.cpp
+index 88893b64ba..c391bf3de2 100644
+--- a/libs/gui/tests/Surface_test.cpp
++++ b/libs/gui/tests/Surface_test.cpp
+@@ -169,10 +169,10 @@ protected:
+         if (hasSurfaceListener) {
+             listener = new FakeSurfaceListener(enableReleasedCb);
+         }
+-        ASSERT_EQ(OK,
+-                  surface->connect(NATIVE_WINDOW_API_CPU,
+-                                   /*listener*/ listener,
+-                                   /*reportBufferRemoval*/ true));
++        ASSERT_EQ(OK, surface->connect(
++                NATIVE_WINDOW_API_CPU,
++                /*reportBufferRemoval*/true,
++                /*listener*/listener));
+         const int BUFFER_COUNT = 4 + extraDiscardedBuffers;
+         ASSERT_EQ(NO_ERROR, native_window_set_buffer_count(window.get(), BUFFER_COUNT));
+         ASSERT_EQ(NO_ERROR, native_window_set_usage(window.get(), TEST_PRODUCER_USAGE_BITS));
+@@ -507,10 +507,10 @@ TEST_F(SurfaceTest, GetAndFlushRemovedBuffers) {
+     sp<Surface> surface = new Surface(producer);
+     sp<ANativeWindow> window(surface);
+     sp<StubSurfaceListener> listener = new StubSurfaceListener();
+-    ASSERT_EQ(OK,
+-              surface->connect(NATIVE_WINDOW_API_CPU,
+-                               /*listener*/ listener,
+-                               /*reportBufferRemoval*/ true));
++    ASSERT_EQ(OK, surface->connect(
++            NATIVE_WINDOW_API_CPU,
++            /*listener*/listener,
++            /*reportBufferRemoval*/true));
+     const int BUFFER_COUNT = 4;
+     ASSERT_EQ(NO_ERROR, native_window_set_buffer_count(window.get(), BUFFER_COUNT));
+     ASSERT_EQ(NO_ERROR, native_window_set_usage(window.get(), TEST_PRODUCER_USAGE_BITS));
+@@ -2367,7 +2367,7 @@ TEST_F(SurfaceTest, QueueAcquireReleaseDequeue_CalledInStack_DoesNotDeadlock) {
+     consumer->setFrameAvailableListener(consumerListener);
+ 
+     sp<DequeuingSurfaceListener> surfaceListener = sp<DequeuingSurfaceListener>::make(surface);
+-    EXPECT_EQ(OK, surface->connect(NATIVE_WINDOW_API_CPU, surfaceListener, false));
++    EXPECT_EQ(OK, surface->connect(NATIVE_WINDOW_API_CPU, false, surfaceListener));
+ 
+     EXPECT_EQ(OK, surface->setMaxDequeuedBufferCount(2));
+ 
+-- 
+2.34.1
+

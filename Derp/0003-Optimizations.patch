@@ -1,0 +1,847 @@
+From 7b43452274a532ff07745978594c38770b3f9a26 Mon Sep 17 00:00:00 2001
+From: minaripenguin <minaripenguin@users.noreply.github.com>
+Date: Fri, 13 Sep 2024 14:37:28 +0800
+Subject: [PATCH] Optimizations
+
+---
+ .../server/job/JobConcurrencyManager.java     | 19 +----------------
+ .../server/usage/AppStandbyController.java    |  4 +---
+ .../android/app/SystemServiceRegistry.java    |  8 +++----
+ .../content/res/ThemedResourceCache.java      | 13 +++++-------
+ .../database/sqlite/SQLiteDatabase.java       |  6 ++----
+ core/java/android/os/Trace.java               |  3 +++
+ core/java/android/util/PackageUtils.java      |  3 +--
+ core/java/android/widget/AbsListView.java     |  8 +++----
+ core/java/android/widget/OverScroller.java    |  2 +-
+ .../com/android/server/LocalServices.java     |  6 +++---
+ libs/hwui/MemoryPolicy.cpp                    | 21 ++-----------------
+ .../src/AvatarPhotoController.java            |  8 ++++---
+ .../android/systemui/log/LogBufferHelper.kt   |  6 +-----
+ .../android/server/DropBoxManagerService.java |  3 +--
+ .../android/server/am/BroadcastConstants.java | 21 +++++++------------
+ .../server/net/NetworkPolicyLogger.java       |  6 ++----
+ .../server/pm/InstallPackageHelper.java       |  4 ++--
+ .../server/wm/ActivityClientController.java   |  1 +
+ .../com/android/server/wm/ActivityRecord.java | 18 +++++++++++++++-
+ .../android/server/wm/ActivityStarter.java    |  1 +
+ .../android/server/wm/AppSnapshotLoader.java  | 13 ++++--------
+ .../server/wm/AsyncRotationController.java    | 14 +++++++++++++
+ .../com/android/server/wm/DisplayPolicy.java  |  8 +++++++
+ .../SystemGesturesPointerEventListener.java   | 17 +++++++++++++++
+ .../com/android/server/wm/TaskFragment.java   |  9 ++++++++
+ .../com/android/server/wm/Transition.java     | 10 +++++++++
+ .../usage/BroadcastResponseStatsLogger.java   |  3 +--
+ 27 files changed, 127 insertions(+), 108 deletions(-)
+
+diff --git a/apex/jobscheduler/service/java/com/android/server/job/JobConcurrencyManager.java b/apex/jobscheduler/service/java/com/android/server/job/JobConcurrencyManager.java
+index ba8e3e8b48fc..a1637249ef0f 100644
+--- a/apex/jobscheduler/service/java/com/android/server/job/JobConcurrencyManager.java
++++ b/apex/jobscheduler/service/java/com/android/server/job/JobConcurrencyManager.java
+@@ -96,24 +96,7 @@ class JobConcurrencyManager {
+ 
+     static final String CONFIG_KEY_PREFIX_CONCURRENCY = "concurrency_";
+     private static final String KEY_CONCURRENCY_LIMIT = CONFIG_KEY_PREFIX_CONCURRENCY + "limit";
+-    static final int DEFAULT_CONCURRENCY_LIMIT;
+-
+-    static {
+-        if (ActivityManager.isLowRamDeviceStatic()) {
+-            DEFAULT_CONCURRENCY_LIMIT = 8;
+-        } else {
+-            final long ramBytes = new MemInfoReader().getTotalSize();
+-            if (ramBytes <= GIGABYTES.toBytes(6)) {
+-                DEFAULT_CONCURRENCY_LIMIT = 16;
+-            } else if (ramBytes <= GIGABYTES.toBytes(8)) {
+-                DEFAULT_CONCURRENCY_LIMIT = 20;
+-            } else if (ramBytes <= GIGABYTES.toBytes(12)) {
+-                DEFAULT_CONCURRENCY_LIMIT = 32;
+-            } else {
+-                DEFAULT_CONCURRENCY_LIMIT = 40;
+-            }
+-        }
+-    }
++    static final int DEFAULT_CONCURRENCY_LIMIT = 8;
+ 
+     private static final String KEY_SCREEN_OFF_ADJUSTMENT_DELAY_MS =
+             CONFIG_KEY_PREFIX_CONCURRENCY + "screen_off_adjustment_delay_ms";
+diff --git a/apex/jobscheduler/service/java/com/android/server/usage/AppStandbyController.java b/apex/jobscheduler/service/java/com/android/server/usage/AppStandbyController.java
+index c3fe0314636e..6aef598a93b6 100644
+--- a/apex/jobscheduler/service/java/com/android/server/usage/AppStandbyController.java
++++ b/apex/jobscheduler/service/java/com/android/server/usage/AppStandbyController.java
+@@ -2666,9 +2666,7 @@ public class AppStandbyController
+ 
+                 final ActivityManager activityManager =
+                         (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE);
+-                if (activityManager.isLowRamDevice() || ActivityManager.isSmallBatteryDevice()) {
+-                    mAutoRestrictedBucketDelayMs = 12 * ONE_HOUR;
+-                }
++                mAutoRestrictedBucketDelayMs = 12 * ONE_HOUR;
+             } else if (phase == PHASE_BOOT_COMPLETED) {
+                 // mWellbeingApp needs to be initialized lazily after boot to allow for roles to be
+                 // parsed and the wellbeing role-holder to be assigned
+diff --git a/core/java/android/app/SystemServiceRegistry.java b/core/java/android/app/SystemServiceRegistry.java
+index c0c50de2d0bf..4ebb9f2e0665 100644
+--- a/core/java/android/app/SystemServiceRegistry.java
++++ b/core/java/android/app/SystemServiceRegistry.java
+@@ -239,7 +239,6 @@ import android.telephony.MmsManager;
+ import android.telephony.TelephonyFrameworkInitializer;
+ import android.telephony.TelephonyRegistryManager;
+ import android.transparency.BinaryTransparencyManager;
+-import android.util.ArrayMap;
+ import android.util.Log;
+ import android.util.Slog;
+ import android.uwb.UwbFrameworkInitializer;
+@@ -282,6 +281,7 @@ import com.android.internal.derp.app.ILineageGlobalActions;
+ import com.android.internal.derp.hardware.LiveDisplayManager;
+ import com.android.internal.derp.hardware.ILiveDisplayService;
+ 
++import java.util.HashMap;
+ import java.util.Map;
+ import java.util.Objects;
+ 
+@@ -323,10 +323,10 @@ public final class SystemServiceRegistry {
+     // Service registry information.
+     // This information is never changed once static initialization has completed.
+     private static final Map<Class<?>, String> SYSTEM_SERVICE_NAMES =
+-            new ArrayMap<Class<?>, String>();
++            new HashMap<Class<?>, String>();
+     private static final Map<String, ServiceFetcher<?>> SYSTEM_SERVICE_FETCHERS =
+-            new ArrayMap<String, ServiceFetcher<?>>();
+-    private static final Map<String, String> SYSTEM_SERVICE_CLASS_NAMES = new ArrayMap<>();
++            new HashMap<String, ServiceFetcher<?>>();
++    private static final Map<String, String> SYSTEM_SERVICE_CLASS_NAMES = new HashMap<>();
+ 
+     private static int sServiceCacheSize;
+ 
+diff --git a/core/java/android/content/res/ThemedResourceCache.java b/core/java/android/content/res/ThemedResourceCache.java
+index 690dfcf9619b..07bccc819bad 100644
+--- a/core/java/android/content/res/ThemedResourceCache.java
++++ b/core/java/android/content/res/ThemedResourceCache.java
+@@ -22,10 +22,10 @@ import android.compat.annotation.UnsupportedAppUsage;
+ import android.content.pm.ActivityInfo.Config;
+ import android.content.res.Resources.Theme;
+ import android.content.res.Resources.ThemeKey;
+-import android.util.ArrayMap;
+ import android.util.LongSparseArray;
+ 
+ import java.lang.ref.WeakReference;
++import java.util.HashMap;
+ 
+ /**
+  * Data structure used for caching data against themes.
+@@ -35,7 +35,7 @@ import java.lang.ref.WeakReference;
+ abstract class ThemedResourceCache<T> {
+     public static final int UNDEFINED_GENERATION = -1;
+     @UnsupportedAppUsage
+-    private ArrayMap<ThemeKey, LongSparseArray<WeakReference<T>>> mThemedEntries;
++    private HashMap<ThemeKey, LongSparseArray<WeakReference<T>>> mThemedEntries;
+     private LongSparseArray<WeakReference<T>> mUnthemedEntries;
+     private LongSparseArray<WeakReference<T>> mNullThemedEntries;
+ 
+@@ -174,7 +174,7 @@ abstract class ThemedResourceCache<T> {
+ 
+         if (mThemedEntries == null) {
+             if (create) {
+-                mThemedEntries = new ArrayMap<>(1);
++                mThemedEntries = new HashMap<>(1);
+             } else {
+                 return null;
+             }
+@@ -218,11 +218,8 @@ abstract class ThemedResourceCache<T> {
+      */
+     private boolean pruneLocked(@Config int configChanges) {
+         if (mThemedEntries != null) {
+-            for (int i = mThemedEntries.size() - 1; i >= 0; i--) {
+-                if (pruneEntriesLocked(mThemedEntries.valueAt(i), configChanges)) {
+-                    mThemedEntries.removeAt(i);
+-                }
+-            }
++	    mThemedEntries.entrySet()
++		.removeIf(entry -> pruneEntriesLocked(entry.getValue(), configChanges));
+         }
+ 
+         pruneEntriesLocked(mNullThemedEntries, configChanges);
+diff --git a/core/java/android/database/sqlite/SQLiteDatabase.java b/core/java/android/database/sqlite/SQLiteDatabase.java
+index f54be00c9e69..e607741e3639 100644
+--- a/core/java/android/database/sqlite/SQLiteDatabase.java
++++ b/core/java/android/database/sqlite/SQLiteDatabase.java
+@@ -471,10 +471,8 @@ public final class SQLiteDatabase extends SQLiteClosable {
+         mConfigurationLocked.lookasideSlotCount = lookasideSlotCount;
+ 
+         // Disable lookaside allocator on low-RAM devices
+-        if (ActivityManager.isLowRamDeviceStatic()) {
+-            mConfigurationLocked.lookasideSlotCount = 0;
+-            mConfigurationLocked.lookasideSlotSize = 0;
+-        }
++        mConfigurationLocked.lookasideSlotCount = 0;
++        mConfigurationLocked.lookasideSlotSize = 0;
+         long effectiveTimeoutMs = Long.MAX_VALUE;
+         // Never close idle connections for in-memory databases
+         if (!mConfigurationLocked.isInMemoryDb()) {
+diff --git a/core/java/android/os/Trace.java b/core/java/android/os/Trace.java
+index edb3a641f107..0b7ab3a9f76d 100644
+--- a/core/java/android/os/Trace.java
++++ b/core/java/android/os/Trace.java
+@@ -181,6 +181,9 @@ public final class Trace {
+     @UnsupportedAppUsage
+     @SystemApi(client = MODULE_LIBRARIES)
+     public static boolean isTagEnabled(long traceTag) {
++        if (!Build.IS_ENG) {
++            return false;
++        }
+         return nativeIsTagEnabled(traceTag);
+     }
+ 
+diff --git a/core/java/android/util/PackageUtils.java b/core/java/android/util/PackageUtils.java
+index c1ed19fef032..4f8a1e3a7803 100644
+--- a/core/java/android/util/PackageUtils.java
++++ b/core/java/android/util/PackageUtils.java
+@@ -178,8 +178,7 @@ public final class PackageUtils {
+      *          device, otherwise a byte array of size {@link #HIGH_RAM_BUFFER_SIZE_BYTES}
+      */
+     public static @NonNull byte[] createLargeFileBuffer() {
+-        int bufferSize = ActivityManager.isLowRamDeviceStatic()
+-                ? LOW_RAM_BUFFER_SIZE_BYTES : HIGH_RAM_BUFFER_SIZE_BYTES;
++        int bufferSize = LOW_RAM_BUFFER_SIZE_BYTES;
+         return new byte[bufferSize];
+     }
+ 
+diff --git a/core/java/android/widget/AbsListView.java b/core/java/android/widget/AbsListView.java
+index 819e367adbf9..d300f1d4dd40 100644
+--- a/core/java/android/widget/AbsListView.java
++++ b/core/java/android/widget/AbsListView.java
+@@ -4239,6 +4239,10 @@ public abstract class AbsListView extends AdapterView<ListAdapter> implements Te
+                                     }
+                                     mSelector.setHotspot(x, ev.getY());
+                                 }
++                                if (!mDataChanged && !mIsDetaching
++                                        && isAttachedToWindow()) {
++                                    performClick.run();
++                                }
+                                 if (mTouchModeReset != null) {
+                                     removeCallbacks(mTouchModeReset);
+                                 }
+@@ -4249,10 +4253,6 @@ public abstract class AbsListView extends AdapterView<ListAdapter> implements Te
+                                         mTouchMode = TOUCH_MODE_REST;
+                                         child.setPressed(false);
+                                         setPressed(false);
+-                                        if (!mDataChanged && !mIsDetaching
+-                                                && isAttachedToWindow()) {
+-                                            performClick.run();
+-                                        }
+                                     }
+                                 };
+                                 postDelayed(mTouchModeReset,
+diff --git a/core/java/android/widget/OverScroller.java b/core/java/android/widget/OverScroller.java
+index abb147108cac..ae7aa301382e 100644
+--- a/core/java/android/widget/OverScroller.java
++++ b/core/java/android/widget/OverScroller.java
+@@ -908,7 +908,7 @@ public class OverScroller {
+             final long time = AnimationUtils.currentAnimationTimeMillis();
+             final long currentTime = time - mStartTime;
+ 
+-            if (currentTime == 0) {
++            if (currentTime <= 0) {
+                 // Skip work but report that we're still going if we have a nonzero duration.
+                 return mDuration > 0;
+             }
+diff --git a/core/java/com/android/server/LocalServices.java b/core/java/com/android/server/LocalServices.java
+index 2a10918a5161..4f9cc88aacdc 100644
+--- a/core/java/com/android/server/LocalServices.java
++++ b/core/java/com/android/server/LocalServices.java
+@@ -18,7 +18,7 @@ package com.android.server;
+ 
+ import com.android.internal.annotations.VisibleForTesting;
+ 
+-import android.util.ArrayMap;
++import java.util.HashMap;
+ 
+ /**
+  * This class is used in a similar way as ServiceManager, except the services registered here
+@@ -33,8 +33,8 @@ import android.util.ArrayMap;
+ public final class LocalServices {
+     private LocalServices() {}
+ 
+-    private static final ArrayMap<Class<?>, Object> sLocalServiceObjects =
+-            new ArrayMap<Class<?>, Object>();
++    private static final HashMap<Class<?>, Object> sLocalServiceObjects =
++            new HashMap<Class<?>, Object>();
+ 
+     /**
+      * Returns a local service instance that implements the specified interface.
+diff --git a/libs/hwui/MemoryPolicy.cpp b/libs/hwui/MemoryPolicy.cpp
+index 21f4ca79b68c..26ded3291352 100644
+--- a/libs/hwui/MemoryPolicy.cpp
++++ b/libs/hwui/MemoryPolicy.cpp
+@@ -49,24 +49,7 @@ constexpr static MemoryPolicy sExtremeLowRam{
+ };
+ 
+ const MemoryPolicy& loadMemoryPolicy() {
+-    if (Properties::isSystemOrPersistent) {
+-        return sPersistentOrSystemPolicy;
+-    }
+-    std::string memoryPolicy = base::GetProperty(PROPERTY_MEMORY_POLICY, "");
+-    if (memoryPolicy == "default") {
+-        return sDefaultMemoryPolicy;
+-    }
+-    if (memoryPolicy == "lowram") {
+-        return sLowRamPolicy;
+-    }
+-    if (memoryPolicy == "extremelowram") {
+-        return sExtremeLowRam;
+-    }
+-
+-    if (Properties::isLowRam) {
+-        return sLowRamPolicy;
+-    }
+-    return sDefaultMemoryPolicy;
++    return sLowRamPolicy;
+ }
+ 
+-}  // namespace android::uirenderer
+\ No newline at end of file
++}  // namespace android::uirenderer
+diff --git a/packages/SettingsLib/AvatarPicker/src/AvatarPhotoController.java b/packages/SettingsLib/AvatarPicker/src/AvatarPhotoController.java
+index c20392a300e7..8be00c45ef5f 100644
+--- a/packages/SettingsLib/AvatarPicker/src/AvatarPhotoController.java
++++ b/packages/SettingsLib/AvatarPicker/src/AvatarPhotoController.java
+@@ -312,13 +312,15 @@ class AvatarPhotoController {
+     }
+ 
+     private void saveBitmapToFile(Bitmap bitmap, File file) {
+-        try {
+-            OutputStream os = new FileOutputStream(file);
++        try (OutputStream os = new FileOutputStream(file)) {
+             bitmap.compress(Bitmap.CompressFormat.PNG, 100, os);
+             os.flush();
+-            os.close();
+         } catch (IOException e) {
+             Log.e(TAG, "Cannot create temp file", e);
++        } finally {
++            if (bitmap != null && !bitmap.isRecycled()) {
++                bitmap.recycle();
++            }
+         }
+     }
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/log/LogBufferHelper.kt b/packages/SystemUI/src/com/android/systemui/log/LogBufferHelper.kt
+index 619eac1dbdc3..972bf15fde02 100644
+--- a/packages/SystemUI/src/com/android/systemui/log/LogBufferHelper.kt
++++ b/packages/SystemUI/src/com/android/systemui/log/LogBufferHelper.kt
+@@ -22,11 +22,7 @@ class LogBufferHelper {
+     companion object {
+         /** If necessary, returns a limited maximum size for low ram (Go) devices */
+         fun adjustMaxSize(requestedMaxSize: Int): Int {
+-            return if (ActivityManager.isLowRamDeviceStatic()) {
+-                minOf(requestedMaxSize, 20) /* low ram max log size*/
+-            } else {
+-                requestedMaxSize
+-            }
++            return minOf(requestedMaxSize, 20)
+         }
+     }
+ }
+diff --git a/services/core/java/com/android/server/DropBoxManagerService.java b/services/core/java/com/android/server/DropBoxManagerService.java
+index 75b0fc24bea6..21a1309995bf 100644
+--- a/services/core/java/com/android/server/DropBoxManagerService.java
++++ b/services/core/java/com/android/server/DropBoxManagerService.java
+@@ -1194,8 +1194,7 @@ public final class DropBoxManagerService extends SystemService {
+                 Settings.Global.DROPBOX_AGE_SECONDS, DEFAULT_AGE_SECONDS);
+         mMaxFiles = Settings.Global.getInt(mContentResolver,
+                 Settings.Global.DROPBOX_MAX_FILES,
+-                (ActivityManager.isLowRamDeviceStatic()
+-                        ?  DEFAULT_MAX_FILES_LOWRAM : DEFAULT_MAX_FILES));
++                DEFAULT_MAX_FILES_LOWRAM);
+         long curTimeMillis = System.currentTimeMillis();
+         long cutoffMillis = curTimeMillis - ageSeconds * 1000;
+         while (!mAllFiles.contents.isEmpty()) {
+diff --git a/services/core/java/com/android/server/am/BroadcastConstants.java b/services/core/java/com/android/server/am/BroadcastConstants.java
+index e676b1fca7fb..ecbce62d41c2 100644
+--- a/services/core/java/com/android/server/am/BroadcastConstants.java
++++ b/services/core/java/com/android/server/am/BroadcastConstants.java
+@@ -116,8 +116,7 @@ public class BroadcastConstants {
+      */
+     public int MAX_RUNNING_PROCESS_QUEUES = DEFAULT_MAX_RUNNING_PROCESS_QUEUES;
+     private static final String KEY_MAX_RUNNING_PROCESS_QUEUES = "bcast_max_running_process_queues";
+-    private static final int DEFAULT_MAX_RUNNING_PROCESS_QUEUES =
+-            ActivityManager.isLowRamDeviceStatic() ? 2 : 4;
++    private static final int DEFAULT_MAX_RUNNING_PROCESS_QUEUES = 2;
+ 
+     /**
+      * For {@link BroadcastQueueModernImpl}: Additional running process queue parallelism beyond
+@@ -156,8 +155,7 @@ public class BroadcastConstants {
+     public int MAX_RUNNING_ACTIVE_BROADCASTS = DEFAULT_MAX_RUNNING_ACTIVE_BROADCASTS;
+     private static final String KEY_MAX_RUNNING_ACTIVE_BROADCASTS =
+             "bcast_max_running_active_broadcasts";
+-    private static final int DEFAULT_MAX_RUNNING_ACTIVE_BROADCASTS =
+-            ActivityManager.isLowRamDeviceStatic() ? 8 : 16;
++    private static final int DEFAULT_MAX_RUNNING_ACTIVE_BROADCASTS = 8;
+ 
+     /**
+      * For {@link BroadcastQueueModernImpl}: Maximum number of active "blocking" broadcasts
+@@ -169,8 +167,7 @@ public class BroadcastConstants {
+     public int MAX_CORE_RUNNING_BLOCKING_BROADCASTS = DEFAULT_MAX_CORE_RUNNING_BLOCKING_BROADCASTS;
+     private static final String KEY_CORE_MAX_RUNNING_BLOCKING_BROADCASTS =
+             "bcast_max_core_running_blocking_broadcasts";
+-    private static final int DEFAULT_MAX_CORE_RUNNING_BLOCKING_BROADCASTS =
+-            ActivityManager.isLowRamDeviceStatic() ? 8 : 16;
++    private static final int DEFAULT_MAX_CORE_RUNNING_BLOCKING_BROADCASTS = 8;
+ 
+     /**
+      * For {@link BroadcastQueueModernImpl}: Maximum number of active non-"blocking" broadcasts
+@@ -183,8 +180,7 @@ public class BroadcastConstants {
+             DEFAULT_MAX_CORE_RUNNING_NON_BLOCKING_BROADCASTS;
+     private static final String KEY_CORE_MAX_RUNNING_NON_BLOCKING_BROADCASTS =
+             "bcast_max_core_running_non_blocking_broadcasts";
+-    private static final int DEFAULT_MAX_CORE_RUNNING_NON_BLOCKING_BROADCASTS =
+-            ActivityManager.isLowRamDeviceStatic() ? 32 : 64;
++    private static final int DEFAULT_MAX_CORE_RUNNING_NON_BLOCKING_BROADCASTS = 32;
+ 
+     /**
+      * For {@link BroadcastQueueModernImpl}: Maximum number of pending
+@@ -193,8 +189,7 @@ public class BroadcastConstants {
+      */
+     public int MAX_PENDING_BROADCASTS = DEFAULT_MAX_PENDING_BROADCASTS;
+     private static final String KEY_MAX_PENDING_BROADCASTS = "bcast_max_pending_broadcasts";
+-    private static final int DEFAULT_MAX_PENDING_BROADCASTS =
+-            ActivityManager.isLowRamDeviceStatic() ? 128 : 256;
++    private static final int DEFAULT_MAX_PENDING_BROADCASTS = 128;
+ 
+     /**
+      * For {@link BroadcastQueueModernImpl}: Delay to apply to normal
+@@ -247,8 +242,7 @@ public class BroadcastConstants {
+      */
+     public int MAX_HISTORY_COMPLETE_SIZE = DEFAULT_MAX_HISTORY_COMPLETE_SIZE;
+     private static final String KEY_MAX_HISTORY_COMPLETE_SIZE = "bcast_max_history_complete_size";
+-    private static final int DEFAULT_MAX_HISTORY_COMPLETE_SIZE =
+-            ActivityManager.isLowRamDeviceStatic() ? 64 : 256;
++    private static final int DEFAULT_MAX_HISTORY_COMPLETE_SIZE = 64;
+ 
+     /**
+      * For {@link BroadcastQueueModernImpl}: Maximum number of summarized
+@@ -256,8 +250,7 @@ public class BroadcastConstants {
+      */
+     public int MAX_HISTORY_SUMMARY_SIZE = DEFAULT_MAX_HISTORY_SUMMARY_SIZE;
+     private static final String KEY_MAX_HISTORY_SUMMARY_SIZE = "bcast_max_history_summary_size";
+-    private static final int DEFAULT_MAX_HISTORY_SUMMARY_SIZE =
+-            ActivityManager.isLowRamDeviceStatic() ? 256 : 1024;
++    private static final int DEFAULT_MAX_HISTORY_SUMMARY_SIZE = 256;
+ 
+     /**
+      * For {@link BroadcastRecord}: Default to treating all broadcasts sent by
+diff --git a/services/core/java/com/android/server/net/NetworkPolicyLogger.java b/services/core/java/com/android/server/net/NetworkPolicyLogger.java
+index 681aa8aef219..a30008971cd6 100644
+--- a/services/core/java/com/android/server/net/NetworkPolicyLogger.java
++++ b/services/core/java/com/android/server/net/NetworkPolicyLogger.java
+@@ -66,10 +66,8 @@ public class NetworkPolicyLogger {
+     static final boolean LOGD = Log.isLoggable(TAG, Log.DEBUG);
+     static final boolean LOGV = Log.isLoggable(TAG, Log.VERBOSE);
+ 
+-    private static final int MAX_LOG_SIZE =
+-            ActivityManager.isLowRamDeviceStatic() ? 100 : 400;
+-    private static final int MAX_NETWORK_BLOCKED_LOG_SIZE =
+-            ActivityManager.isLowRamDeviceStatic() ? 100 : 400;
++    private static final int MAX_LOG_SIZE = 100;
++    private static final int MAX_NETWORK_BLOCKED_LOG_SIZE = 100;
+ 
+     private static final int EVENT_TYPE_GENERIC = 0;
+     private static final int EVENT_NETWORK_BLOCKED = 1;
+diff --git a/services/core/java/com/android/server/pm/InstallPackageHelper.java b/services/core/java/com/android/server/pm/InstallPackageHelper.java
+index 82f3778fe3c9..aa170bc7e0e6 100644
+--- a/services/core/java/com/android/server/pm/InstallPackageHelper.java
++++ b/services/core/java/com/android/server/pm/InstallPackageHelper.java
+@@ -2671,9 +2671,9 @@ final class InstallPackageHelper {
+             }
+ 
+             if (dataOwnerPkg != null && !dataOwnerPkg.isSdkLibrary()) {
++                final boolean downgradeAllowed = true;
+                 if (!PackageManagerServiceUtils.isDowngradePermitted(installFlags,
+-                        dataOwnerPkg.isDebuggable())) {
+-                    // Downgrade is not permitted; a lower version of the app will not be allowed
++                        dataOwnerPkg.isDebuggable()) && !downgradeAllowed) {
+                     try {
+                         PackageManagerServiceUtils.checkDowngrade(dataOwnerPkg, pkgLite);
+                     } catch (PackageManagerException e) {
+diff --git a/services/core/java/com/android/server/wm/ActivityClientController.java b/services/core/java/com/android/server/wm/ActivityClientController.java
+index 3e177c9fe8c6..1fd3da3185e7 100644
+--- a/services/core/java/com/android/server/wm/ActivityClientController.java
++++ b/services/core/java/com/android/server/wm/ActivityClientController.java
+@@ -504,6 +504,7 @@ class ActivityClientController extends IActivityClientController.Stub {
+             final long origId = Binder.clearCallingIdentity();
+             Trace.traceBegin(TRACE_TAG_WINDOW_MANAGER, "finishActivity");
+             try {
++                r.setActivityBoost(false);
+                 final boolean res;
+                 final boolean finishWithRootActivity =
+                         finishTask == Activity.FINISH_TASK_WITH_ROOT_ACTIVITY;
+diff --git a/services/core/java/com/android/server/wm/ActivityRecord.java b/services/core/java/com/android/server/wm/ActivityRecord.java
+index f54e3f770aea..fc8d1ec914dd 100644
+--- a/services/core/java/com/android/server/wm/ActivityRecord.java
++++ b/services/core/java/com/android/server/wm/ActivityRecord.java
+@@ -323,6 +323,7 @@ import android.graphics.Rect;
+ import android.graphics.drawable.Drawable;
+ import android.gui.DropInputMode;
+ import android.hardware.HardwareBuffer;
++import android.hardware.power.Mode;
+ import android.net.Uri;
+ import android.os.Binder;
+ import android.os.Build;
+@@ -331,6 +332,7 @@ import android.os.Debug;
+ import android.os.IBinder;
+ import android.os.IRemoteCallback;
+ import android.os.PersistableBundle;
++import android.os.PowerManagerInternal;
+ import android.os.Process;
+ import android.os.RemoteCallbackList;
+ import android.os.RemoteException;
+@@ -1036,6 +1038,9 @@ final class ActivityRecord extends WindowToken implements WindowManagerService.A
+     /** Non-zero to pause dispatching configuration changes to the client. */
+     int mPauseConfigurationDispatchCount = 0;
+ 
++    private final PowerManagerInternal mPowerManagerInternal;
++    private boolean mIsBoosted;
++
+     private final Runnable mPauseTimeoutRunnable = new Runnable() {
+         @Override
+         public void run() {
+@@ -2338,6 +2343,8 @@ final class ActivityRecord extends WindowToken implements WindowManagerService.A
+                             return appContext;
+                         });
+         mCallerState = new ActivityCallerState(mAtmService);
++
++        mPowerManagerInternal = LocalServices.getService(PowerManagerInternal.class);
+     }
+ 
+     private boolean isAppActivityEmbeddingSplitsEnabled() {
+@@ -6368,12 +6375,13 @@ final class ActivityRecord extends WindowToken implements WindowManagerService.A
+                 Slog.v(TAG_VISIBILITY, "Start visible activity, " + this);
+             }
+             setState(STARTED, "makeActiveIfNeeded");
+-
++            setActivityBoost(true);
+             try {
+                 mAtmService.getLifecycleManager().scheduleTransactionItem(app.getThread(),
+                         StartActivityItem.obtain(token, takeSceneTransitionInfo()));
+             } catch (Exception e) {
+                 Slog.w(TAG, "Exception thrown sending start: " + intent.getComponent(), e);
++                setActivityBoost(false);
+             }
+             // The activity may be waiting for stop, but that is no longer appropriate if we are
+             // starting the activity again
+@@ -6993,8 +7001,16 @@ final class ActivityRecord extends WindowToken implements WindowManagerService.A
+         }
+     }
+ 
++    protected void setActivityBoost(boolean enable) {
++        if (mIsBoosted != enable && mPowerManagerInternal != null) {
++            mIsBoosted = enable;
++            mPowerManagerInternal.setPowerMode(Mode.LAUNCH, enable);
++        }
++    }
++
+     /** Called when the windows associated app window container are drawn. */
+     private void onWindowsDrawn() {
++        setActivityBoost(false);
+         final TransitionInfoSnapshot info = mTaskSupervisor
+                 .getActivityMetricsLogger().notifyWindowsDrawn(this);
+         final boolean validInfo = info != null;
+diff --git a/services/core/java/com/android/server/wm/ActivityStarter.java b/services/core/java/com/android/server/wm/ActivityStarter.java
+index 09dbad8f6435..304d1674cbc1 100644
+--- a/services/core/java/com/android/server/wm/ActivityStarter.java
++++ b/services/core/java/com/android/server/wm/ActivityStarter.java
+@@ -2963,6 +2963,7 @@ class ActivityStarter {
+ 
+     /** Places {@link #mStartActivity} in {@code task} or an embedded {@link TaskFragment}. */
+     private void addOrReparentStartingActivity(@NonNull Task task, String reason) {
++        mStartActivity.setActivityBoost(true);
+         TaskFragment newParent = task;
+         if (mInTaskFragment != null) {
+             int embeddingCheckResult = canEmbedActivity(mInTaskFragment, mStartActivity, task);
+diff --git a/services/core/java/com/android/server/wm/AppSnapshotLoader.java b/services/core/java/com/android/server/wm/AppSnapshotLoader.java
+index ed65a2b2f8e6..74ba5e3660aa 100644
+--- a/services/core/java/com/android/server/wm/AppSnapshotLoader.java
++++ b/services/core/java/com/android/server/wm/AppSnapshotLoader.java
+@@ -103,7 +103,7 @@ class AppSnapshotLoader {
+ 
+         if (isPreQLegacyProto) {
+             // Android O or Android P
+-            if (ActivityManager.isLowRamDeviceStatic() && !highResFileExists) {
++            if (!highResFileExists) {
+                 // Android P w/ low_ram=true
+                 preRLegacyScale = 0.6f;
+                 // Force bitmapFile to always be *_reduced.jpg
+@@ -114,14 +114,9 @@ class AppSnapshotLoader {
+             }
+         } else if (isPreRLegacySnapshot) {
+             // If not pre-Q but is pre-R, then it must be Android Q
+-            if (ActivityManager.isLowRamDeviceStatic()) {
+-                preRLegacyScale = legacyScale;
+-                // Force bitmapFile to always be *_reduced.jpg
+-                forceLoadReducedJpeg = true;
+-            } else {
+-                preRLegacyScale =
+-                        loadLowResolutionBitmap ? 0.5f * legacyScale : legacyScale;
+-            }
++            preRLegacyScale = legacyScale;
++            // Force bitmapFile to always be *_reduced.jpg
++            forceLoadReducedJpeg = true;
+         }
+         return new PreRLegacySnapshotConfig(preRLegacyScale, forceLoadReducedJpeg);
+     }
+diff --git a/services/core/java/com/android/server/wm/AsyncRotationController.java b/services/core/java/com/android/server/wm/AsyncRotationController.java
+index eb85c1a73212..a0299e627fe3 100644
+--- a/services/core/java/com/android/server/wm/AsyncRotationController.java
++++ b/services/core/java/com/android/server/wm/AsyncRotationController.java
+@@ -22,7 +22,9 @@ import static android.view.WindowManager.LayoutParams.TYPE_NAVIGATION_BAR;
+ import static com.android.server.wm.SurfaceAnimator.ANIMATION_TYPE_TOKEN_TRANSFORM;
+ 
+ import android.annotation.IntDef;
++import android.hardware.power.Mode;
+ import android.os.HandlerExecutor;
++import android.os.PowerManagerInternal;
+ import android.util.ArrayMap;
+ import android.util.Slog;
+ import android.view.SurfaceControl;
+@@ -32,6 +34,7 @@ import android.view.animation.Animation;
+ import android.view.animation.AnimationUtils;
+ 
+ import com.android.internal.R;
++import com.android.server.LocalServices;
+ 
+ import java.io.PrintWriter;
+ import java.lang.annotation.Retention;
+@@ -109,10 +112,13 @@ class AsyncRotationController extends FadeAnimationController implements Consume
+     private int mOriginalRotation;
+     private final boolean mHasScreenRotationAnimation;
+ 
++    private final PowerManagerInternal mPowerManagerInternal;
++
+     AsyncRotationController(DisplayContent displayContent) {
+         super(displayContent);
+         mService = displayContent.mWmService;
+         mOriginalRotation = displayContent.getWindowConfiguration().getRotation();
++        mPowerManagerInternal = LocalServices.getService(PowerManagerInternal.class);
+         final int transitionType =
+                 displayContent.mTransitionController.getCollectingTransitionType();
+         if (transitionType == WindowManager.TRANSIT_CHANGE) {
+@@ -359,6 +365,7 @@ class AsyncRotationController extends FadeAnimationController implements Consume
+             if (DEBUG) Slog.d(TAG, "Complete directly " + token.getTopChild());
+             finishOp(token);
+             if (mTargetWindowTokens.isEmpty()) {
++                setActivityBoost(false);
+                 onAllCompleted();
+                 return true;
+             }
+@@ -368,11 +375,18 @@ class AsyncRotationController extends FadeAnimationController implements Consume
+         return false;
+     }
+ 
++    private void setActivityBoost(boolean enable) {
++        if (mPowerManagerInternal != null) {
++            mPowerManagerInternal.setPowerMode(Mode.LAUNCH, enable);
++        }
++    }
++
+     /**
+      * Prepares the corresponding operations (e.g. hide animation) for the window tokens which may
+      * be seamlessly rotated later.
+      */
+     void start() {
++        setActivityBoost(true);
+         for (int i = mTargetWindowTokens.size() - 1; i >= 0; i--) {
+             final WindowToken windowToken = mTargetWindowTokens.keyAt(i);
+             final Operation op = mTargetWindowTokens.valueAt(i);
+diff --git a/services/core/java/com/android/server/wm/DisplayPolicy.java b/services/core/java/com/android/server/wm/DisplayPolicy.java
+index 3005db155681..e7bac482b2fa 100644
+--- a/services/core/java/com/android/server/wm/DisplayPolicy.java
++++ b/services/core/java/com/android/server/wm/DisplayPolicy.java
+@@ -537,6 +537,14 @@ public class DisplayPolicy {
+                                 Boost.INTERACTION, duration);
+                     }
+                 }
++                
++                @Override
++                public void onScroll(int duration) {
++                    if (mService.mPowerManagerInternal != null) {
++                        mService.mPowerManagerInternal.setPowerBoost(
++                                Boost.INTERACTION, duration);
++                    }
++                }
+ 
+                 @Override
+                 public void onDebug() {
+diff --git a/services/core/java/com/android/server/wm/SystemGesturesPointerEventListener.java b/services/core/java/com/android/server/wm/SystemGesturesPointerEventListener.java
+index b7944d3b8234..d85c713f91ac 100644
+--- a/services/core/java/com/android/server/wm/SystemGesturesPointerEventListener.java
++++ b/services/core/java/com/android/server/wm/SystemGesturesPointerEventListener.java
+@@ -91,6 +91,7 @@ class SystemGesturesPointerEventListener implements PointerEventListener {
+     private boolean mMouseHoveringAtRight;
+     private boolean mMouseHoveringAtBottom;
+     private long mLastFlingTime;
++    private boolean mScrollFired;
+ 
+     SystemGesturesPointerEventListener(Context context, Handler handler, Callbacks callbacks) {
+         mContext = checkNull("context", context);
+@@ -184,6 +185,7 @@ class SystemGesturesPointerEventListener implements PointerEventListener {
+             case MotionEvent.ACTION_DOWN:
+                 mSwipeFireable = true;
+                 mDebugFireable = true;
++                mScrollFired = false;
+                 mDownPointers = 0;
+                 captureDown(event, 0);
+                 if (mMouseHoveringAtLeft) {
+@@ -290,6 +292,7 @@ class SystemGesturesPointerEventListener implements PointerEventListener {
+             case MotionEvent.ACTION_CANCEL:
+                 mSwipeFireable = false;
+                 mDebugFireable = false;
++                mScrollFired = false;
+                 mCallbacks.onUpOrCancel();
+                 break;
+             default:
+@@ -450,6 +453,19 @@ class SystemGesturesPointerEventListener implements PointerEventListener {
+             mCallbacks.onFling(duration);
+             return true;
+         }
++        @Override
++        public boolean onScroll(MotionEvent e1, MotionEvent e2,
++                                   float distanceX, float distanceY) {
++           if (!mScrollFired) {
++                int duration = mOverscroller.getDuration();
++                if (duration > MAX_FLING_TIME_MILLIS) {
++                    duration = MAX_FLING_TIME_MILLIS;
++                }
++               mCallbacks.onScroll(duration);
++               mScrollFired = true;
++           }
++           return true;
++        }
+     }
+ 
+     interface Callbacks {
+@@ -458,6 +474,7 @@ class SystemGesturesPointerEventListener implements PointerEventListener {
+         void onSwipeFromRight();
+         void onSwipeFromLeft();
+         void onFling(int durationMs);
++        void onScroll(int durationMs);
+         void onDown();
+         void onUpOrCancel();
+         void onMouseHoverAtLeft();
+diff --git a/services/core/java/com/android/server/wm/TaskFragment.java b/services/core/java/com/android/server/wm/TaskFragment.java
+index 7f6499f0f4b5..daf6a2db95ba 100644
+--- a/services/core/java/com/android/server/wm/TaskFragment.java
++++ b/services/core/java/com/android/server/wm/TaskFragment.java
+@@ -92,7 +92,9 @@ import android.content.res.Configuration;
+ import android.graphics.Insets;
+ import android.graphics.Point;
+ import android.graphics.Rect;
++import android.hardware.power.Boost;
+ import android.os.IBinder;
++import android.os.PowerManagerInternal;
+ import android.os.UserHandle;
+ import android.util.DisplayMetrics;
+ import android.util.Slog;
+@@ -108,6 +110,7 @@ import android.window.TaskFragmentOrganizerToken;
+ import com.android.internal.annotations.VisibleForTesting;
+ import com.android.internal.protolog.common.ProtoLog;
+ import com.android.internal.util.ToBooleanFunction;
++import com.android.server.LocalServices;
+ import com.android.server.am.HostingRecord;
+ import com.android.server.pm.pkg.AndroidPackage;
+ import com.android.window.flags.Flags;
+@@ -414,6 +417,8 @@ class TaskFragment extends WindowContainer<WindowContainer> {
+     private final EnsureActivitiesVisibleHelper mEnsureActivitiesVisibleHelper =
+             new EnsureActivitiesVisibleHelper(this);
+ 
++     private final PowerManagerInternal mPowerManagerInternal;
++
+     /** Creates an embedded task fragment. */
+     TaskFragment(ActivityTaskManagerService atmService, IBinder fragmentToken,
+             boolean createdByOrganizer) {
+@@ -434,6 +439,7 @@ class TaskFragment extends WindowContainer<WindowContainer> {
+                 mAtmService.mWindowOrganizerController.mTaskFragmentOrganizerController;
+         mFragmentToken = fragmentToken;
+         mRemoteToken = new RemoteToken(this);
++        mPowerManagerInternal = LocalServices.getService(PowerManagerInternal.class);
+     }
+ 
+     @NonNull
+@@ -1532,6 +1538,9 @@ class TaskFragment extends WindowContainer<WindowContainer> {
+                 dc.prepareAppTransition(TRANSIT_NONE);
+             } else {
+                 dc.prepareAppTransition(TRANSIT_OPEN);
++                if (mPowerManagerInternal != null) {
++                    mPowerManagerInternal.setPowerBoost(Boost.DISPLAY_UPDATE_IMMINENT, 80);
++                }
+             }
+         }
+ 
+diff --git a/services/core/java/com/android/server/wm/Transition.java b/services/core/java/com/android/server/wm/Transition.java
+index dcfe350b1c42..600d412f3ba2 100644
+--- a/services/core/java/com/android/server/wm/Transition.java
++++ b/services/core/java/com/android/server/wm/Transition.java
+@@ -82,11 +82,13 @@ import android.content.pm.ActivityInfo;
+ import android.graphics.Point;
+ import android.graphics.Rect;
+ import android.hardware.HardwareBuffer;
++import android.hardware.power.Boost;
+ import android.os.Binder;
+ import android.os.Bundle;
+ import android.os.IBinder;
+ import android.os.IRemoteCallback;
+ import android.os.Looper;
++import android.os.PowerManagerInternal;
+ import android.os.RemoteException;
+ import android.os.SystemClock;
+ import android.os.Trace;
+@@ -109,6 +111,7 @@ import com.android.internal.protolog.ProtoLogGroup;
+ import com.android.internal.protolog.common.ProtoLog;
+ import com.android.internal.util.function.pooled.PooledLambda;
+ import com.android.server.inputmethod.InputMethodManagerInternal;
++import com.android.server.LocalServices;
+ import com.android.server.statusbar.StatusBarManagerInternal;
+ import com.android.window.flags.Flags;
+ 
+@@ -183,6 +186,8 @@ class Transition implements BLASTSyncEngine.TransactionReadyListener {
+     private final BLASTSyncEngine mSyncEngine;
+     private final Token mToken;
+ 
++    private final PowerManagerInternal mPowerManagerInternal;
++
+     private @Nullable ActivityRecord mPipActivity;
+ 
+     /** Only use for clean-up after binder death! */
+@@ -338,6 +343,8 @@ class Transition implements BLASTSyncEngine.TransactionReadyListener {
+ 
+         mLogger.mCreateWallTimeMs = System.currentTimeMillis();
+         mLogger.mCreateTimeNs = SystemClock.elapsedRealtimeNanos();
++
++        mPowerManagerInternal = LocalServices.getService(PowerManagerInternal.class);
+     }
+ 
+     @Nullable
+@@ -662,6 +669,9 @@ class Transition implements BLASTSyncEngine.TransactionReadyListener {
+             return;
+         }
+         mState = STATE_STARTED;
++        if (mPowerManagerInternal != null && mType == TRANSIT_CHANGE) {
++            mPowerManagerInternal.setPowerBoost(Boost.DISPLAY_UPDATE_IMMINENT, 80);
++        }
+         ProtoLog.v(ProtoLogGroup.WM_DEBUG_WINDOW_TRANSITIONS, "Starting Transition %d",
+                 mSyncId);
+         applyReady();
+diff --git a/services/usage/java/com/android/server/usage/BroadcastResponseStatsLogger.java b/services/usage/java/com/android/server/usage/BroadcastResponseStatsLogger.java
+index a8fd6f29f862..d2fbfbb6ac43 100644
+--- a/services/usage/java/com/android/server/usage/BroadcastResponseStatsLogger.java
++++ b/services/usage/java/com/android/server/usage/BroadcastResponseStatsLogger.java
+@@ -44,8 +44,7 @@ import java.util.function.Supplier;
+ 
+ public class BroadcastResponseStatsLogger {
+ 
+-    private static final int MAX_LOG_SIZE =
+-            ActivityManager.isLowRamDeviceStatic() ? 20 : 50;
++    private static final int MAX_LOG_SIZE = 20;
+ 
+     private final Object mLock = new Object();
+ 
+-- 
+2.34.1
+
